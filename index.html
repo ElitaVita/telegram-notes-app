@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мои заметки</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f3f4f5;
+            color: #222;
+        }
+        .container {
+            max-width: 100%;
+            padding: 16px;
+            box-sizing: border-box;
+        }
+        h1 {
+            color: #2e6b99;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .note-form {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        textarea {
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 16px;
+            resize: none;
+            margin-bottom: 12px;
+            min-height: 100px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #2e6b99;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 16px;
+            width: 100%;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #3a7bb0;
+        }
+        .note {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .note-date {
+            color: #666;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+        .delete-btn {
+            background-color: #ff4d4d;
+            margin-top: 8px;
+        }
+        .delete-btn:hover {
+            background-color: #ff6666;
+        }
+        .empty-state {
+            text-align: center;
+            color: #666;
+            padding: 40px 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📝 Мои заметки</h1>
+        
+        <div class="note-form">
+            <textarea id="noteText" placeholder="Напишите свою заметку здесь..."></textarea>
+            <button id="addNoteBtn">Добавить заметку</button>
+        </div>
+        
+        <div id="notesContainer"></div>
+    </div>
+
+    <script>
+        const webApp = Telegram.WebApp;
+        
+        // Инициализация WebApp
+        webApp.expand();
+        webApp.enableClosingConfirmation();
+        webApp.setHeaderColor('#2e6b99');
+        webApp.setBackgroundColor('#f3f4f5');
+        
+        // Загрузка заметок из localStorage
+        let notes = JSON.parse(localStorage.getItem('telegram_notes')) || [];
+        
+        // Элементы DOM
+        const noteText = document.getElementById('noteText');
+        const addNoteBtn = document.getElementById('addNoteBtn');
+        const notesContainer = document.getElementById('notesContainer');
+        
+        // Отображение заметок
+        function renderNotes() {
+            notesContainer.innerHTML = '';
+            
+            if (notes.length === 0) {
+                notesContainer.innerHTML = `
+                    <div class="empty-state">
+                        У вас пока нет заметок.<br>
+                        Добавьте первую!
+                    </div>
+                `;
+                return;
+            }
+            
+            notes.forEach((note, index) => {
+                const noteElement = document.createElement('div');
+                noteElement.className = 'note';
+                noteElement.innerHTML = `
+                    <div>${note.text}</div>
+                    <div class="note-date">📅 ${note.date}</div>
+                    <button class="delete-btn" data-index="${index}">Удалить</button>
+                `;
+                notesContainer.appendChild(noteElement);
+            });
+            
+            // Добавляем обработчики для кнопок удаления
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    deleteNote(index);
+                });
+            });
+        }
+        
+        // Добавление заметки
+        function addNote() {
+            const text = noteText.value.trim();
+            if (!text) return;
+            
+            const newNote = {
+                text: text,
+                date: new Date().toLocaleString('ru-RU')
+            };
+            
+            notes.unshift(newNote);
+            localStorage.setItem('telegram_notes', JSON.stringify(notes));
+            
+            noteText.value = '';
+            renderNotes();
+            
+            // Показываем всплывающее уведомление в Telegram
+            webApp.showAlert('Заметка добавлена!');
+        }
+        
+        // Удаление заметки
+        function deleteNote(index) {
+            if (confirm('Вы уверены, что хотите удалить эту заметку?')) {
+                notes.splice(index, 1);
+                localStorage.setItem('telegram_notes', JSON.stringify(notes));
+                renderNotes();
+                webApp.showAlert('Заметка удалена');
+            }
+        }
+        
+        // Обработчики событий
+        addNoteBtn.addEventListener('click', addNote);
+        
+        // Инициализация
+        renderNotes();
+        
+        // Кнопка "назад" в Telegram
+        webApp.BackButton.onClick(() => {
+            webApp.close();
+        });
+        
+        // Показываем кнопку "назад", если это не главный экран
+        if (!webApp.isVersionAtLeast('6.1')) {
+            webApp.BackButton.show();
+        }
+    </script>
+</body>
+</html>
